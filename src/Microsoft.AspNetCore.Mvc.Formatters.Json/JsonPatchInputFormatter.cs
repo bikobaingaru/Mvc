@@ -27,8 +27,10 @@ namespace Microsoft.AspNetCore.Mvc.Formatters
         /// The <see cref="JsonSerializerSettings"/>. Should be either the application-wide settings
         /// (<see cref="MvcJsonOptions.SerializerSettings"/>) or an instance
         /// <see cref="JsonSerializerSettingsProvider.CreateSerializerSettings"/> initially returned.
-        /// </param>/// <param name="charPool">The <see cref="ArrayPool{Char}"/>.</param>
+        /// </param>
+        /// <param name="charPool">The <see cref="ArrayPool{Char}"/>.</param>
         /// <param name="objectPoolProvider">The <see cref="ObjectPoolProvider"/>.</param>
+        [Obsolete("This constructor is obsolete and will be removed in a future version.")]
         public JsonPatchInputFormatter(
             ILogger logger,
             JsonSerializerSettings serializerSettings,
@@ -46,21 +48,87 @@ namespace Microsoft.AspNetCore.Mvc.Formatters
         /// The <see cref="JsonSerializerSettings"/>. Should be either the application-wide settings
         /// (<see cref="MvcJsonOptions.SerializerSettings"/>) or an instance
         /// <see cref="JsonSerializerSettingsProvider.CreateSerializerSettings"/> initially returned.
-        /// </param>/// <param name="charPool">The <see cref="ArrayPool{Char}"/>.</param>
+        /// </param>
+        /// <param name="charPool">The <see cref="ArrayPool{Char}"/>.</param>
         /// <param name="objectPoolProvider">The <see cref="ObjectPoolProvider"/>.</param>
         /// <param name="suppressInputFormatterBuffering">Flag to buffer entire request body before deserializing it.</param>
+        [Obsolete("This constructor is obsolete and will be removed in a future version.")]
         public JsonPatchInputFormatter(
             ILogger logger,
             JsonSerializerSettings serializerSettings,
             ArrayPool<char> charPool,
             ObjectPoolProvider objectPoolProvider,
             bool suppressInputFormatterBuffering)
-            : base(logger, serializerSettings, charPool, objectPoolProvider, suppressInputFormatterBuffering)
+            : this(logger, serializerSettings, charPool, objectPoolProvider, suppressInputFormatterBuffering, suppressJsonDeserializationExceptionMessages: false)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="JsonPatchInputFormatter"/> instance.
+        /// </summary>
+        /// <param name="logger">The <see cref="ILogger"/>.</param>
+        /// <param name="serializerSettings">
+        /// The <see cref="JsonSerializerSettings"/>. Should be either the application-wide settings
+        /// (<see cref="MvcJsonOptions.SerializerSettings"/>) or an instance
+        /// <see cref="JsonSerializerSettingsProvider.CreateSerializerSettings"/> initially returned.
+        /// </param>
+        /// <param name="charPool">The <see cref="ArrayPool{Char}"/>.</param>
+        /// <param name="objectPoolProvider">The <see cref="ObjectPoolProvider"/>.</param>
+        /// <param name="suppressInputFormatterBuffering">Flag to buffer entire request body before deserializing it.</param>
+        /// <param name="suppressJsonDeserializationExceptionMessages">If <see langword="true"/>, JSON deserialization exception messages will replaced by a generic message in model state.</param>
+        [Obsolete("This constructor is obsolete and will be removed in a future version.")]
+        public JsonPatchInputFormatter(
+            ILogger logger,
+            JsonSerializerSettings serializerSettings,
+            ArrayPool<char> charPool,
+            ObjectPoolProvider objectPoolProvider,
+            bool suppressInputFormatterBuffering,
+            bool suppressJsonDeserializationExceptionMessages)
+            : base(logger, serializerSettings, charPool, objectPoolProvider, suppressInputFormatterBuffering, suppressJsonDeserializationExceptionMessages)
         {
             // Clear all values and only include json-patch+json value.
             SupportedMediaTypes.Clear();
 
             SupportedMediaTypes.Add(MediaTypeHeaderValues.ApplicationJsonPatch);
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="JsonPatchInputFormatter"/> instance.
+        /// </summary>
+        /// <param name="logger">The <see cref="ILogger"/>.</param>
+        /// <param name="serializerSettings">
+        /// The <see cref="JsonSerializerSettings"/>. Should be either the application-wide settings
+        /// (<see cref="MvcJsonOptions.SerializerSettings"/>) or an instance
+        /// <see cref="JsonSerializerSettingsProvider.CreateSerializerSettings"/> initially returned.
+        /// </param>
+        /// <param name="charPool">The <see cref="ArrayPool{Char}"/>.</param>
+        /// <param name="objectPoolProvider">The <see cref="ObjectPoolProvider"/>.</param>
+        /// <param name="options">The <see cref="MvcOptions"/>.</param>
+        public JsonPatchInputFormatter(
+            ILogger logger,
+            JsonSerializerSettings serializerSettings,
+            ArrayPool<char> charPool,
+            ObjectPoolProvider objectPoolProvider,
+            MvcOptions options)
+            : base(logger, serializerSettings, charPool, objectPoolProvider, options)
+        {
+            // Clear all values and only include json-patch+json value.
+            SupportedMediaTypes.Clear();
+
+            SupportedMediaTypes.Add(MediaTypeHeaderValues.ApplicationJsonPatch);
+        }
+        
+        /// <inheritdoc />
+        public override InputFormatterExceptionModelStatePolicy ExceptionPolicy
+        {
+            get
+            {
+                if (GetType() == typeof(JsonPatchInputFormatter))
+                {
+                    return InputFormatterExceptionModelStatePolicy.MalformedInputExceptions;
+                }
+                return InputFormatterExceptionModelStatePolicy.AllExceptions;
+            }
         }
 
         /// <inheritdoc />

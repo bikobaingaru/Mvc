@@ -2,16 +2,15 @@
   <Import Project="..\..\src\Microsoft.AspNetCore.Mvc.Testing\build\netstandard2.0\Microsoft.AspNetCore.Mvc.Testing.targets" />
 
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp2.0;net461</TargetFrameworks>
-    <TargetFrameworks Condition=" '$(OS)' != 'Windows_NT' ">netcoreapp2.0</TargetFrameworks>
+    <TargetFrameworks>$(StandardTestTfms)</TargetFrameworks>
     <!-- Removing this is blocked by https://github.com/aspnet/Mvc/issues/5822 -->
-    <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netcoreapp2.0' ">$(PackageTargetFallback);portable-net451+win8</PackageTargetFallback>
+    <PackageTargetFallback Condition=" '$(TargetFramework)' == 'netcoreapp2.1' OR '$(TargetFramework)' == 'netcoreapp2.0'  ">$(PackageTargetFallback);portable-net451+win8</PackageTargetFallback>
     <DisableImplicitAssetTargetFallback>true</DisableImplicitAssetTargetFallback>
+    <PlatformTarget Condition=" '$(TargetFramework)' == 'netcoreapp2.1' "></PlatformTarget>
 
     <DefineConstants Condition="'$(GenerateBaselines)'=='true'">$(DefineConstants);GENERATE_BASELINES</DefineConstants>
     <DefineConstants>$(DefineConstants);__RemoveThisBitTo__GENERATE_BASELINES</DefineConstants>
     <DefineConstants>$(DefineConstants);FUNCTIONAL_TESTS</DefineConstants>
-
   </PropertyGroup>
 
   <ItemGroup>
@@ -45,11 +44,11 @@
     <ProjectReference Include="..\WebSites\WebApiCompatShimWebSite\WebApiCompatShimWebSite.csproj" />
     <ProjectReference Include="..\WebSites\XmlFormattersWebSite\XmlFormattersWebSite.csproj" />
 
-    <PackageReference Include="Microsoft.AspNetCore.ChunkingCookieManager.Sources" Version="$(AspNetCoreVersion)" PrivateAssets="All" />
-    <PackageReference Include="Microsoft.AspNetCore.Http" Version="$(AspNetCoreVersion)" />
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="$(AspNetCoreVersion)" />
-    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="$(AspNetCoreVersion)" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="$(AspNetCoreVersion)" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Testing" Version="$(AspNetCoreVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.ChunkingCookieManager.Sources" PrivateAssets="All" Version="$(MicrosoftAspNetCoreChunkingCookieManagerSourcesPackageVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Http" Version="$(MicrosoftAspNetCoreHttpPackageVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="$(MicrosoftAspNetCoreTestHostPackageVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="$(MicrosoftAspNetCoreWebUtilitiesPackageVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="$(MicrosoftExtensionsConfigurationJsonPackageVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Testing" Version="$(MicrosoftExtensionsLoggingTestingPackageVersion)" />
   </ItemGroup>
 </Project>

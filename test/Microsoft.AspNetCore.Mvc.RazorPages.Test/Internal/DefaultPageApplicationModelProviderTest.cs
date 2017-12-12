@@ -7,10 +7,10 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
@@ -230,6 +230,60 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
         }
 
         [Fact]
+        public void OnProvidersExecuting_DiscoversProperties_FromAllSubTypesThatDeclaresBindProperty()
+        {
+            // Arrange
+            var provider = new DefaultPageApplicationModelProvider();
+            var typeInfo = typeof(BindPropertyAttributeOnBaseModelPage).GetTypeInfo();
+            var descriptor = new PageActionDescriptor();
+            var context = new PageApplicationModelProviderContext(descriptor, typeInfo);
+
+            // Act
+            provider.OnProvidersExecuting(context);
+
+            // Assert
+            Assert.NotNull(context.PageApplicationModel);
+            Assert.Collection(
+                context.PageApplicationModel.HandlerProperties.OrderBy(p => p.PropertyName).Where(p => p.BindingInfo != null),
+                property =>
+                {
+                    var name = nameof(ModelLevel3.Property2);
+                    Assert.Equal(typeof(ModelLevel3).GetProperty(name), property.PropertyInfo);
+                    Assert.Equal(name, property.PropertyName);
+                    Assert.NotNull(property.BindingInfo);
+                },
+                property =>
+                {
+                    var name = nameof(ModelLevel3.Property3);
+                    Assert.Equal(typeof(ModelLevel3).GetProperty(name), property.PropertyInfo);
+                    Assert.Equal(name, property.PropertyName);
+                    Assert.NotNull(property.BindingInfo);
+                });
+        }
+
+        private class BindPropertyAttributeOnBaseModelPage : Page
+        {
+            public ModelLevel3 Model => null;
+            public override Task ExecuteAsync() => throw new NotImplementedException();
+        }
+
+        private class ModelLevel1 : PageModel
+        {
+            public string Property1 { get; set; }
+        }
+
+        [BindProperty]
+        private class ModelLevel2 : ModelLevel1
+        {
+            public string Property2 { get; set; }
+        }
+
+        private class ModelLevel3 : ModelLevel2
+        {
+            public string Property3 { get; set; }
+        }
+
+        [Fact]
         public void OnProvidersExecuting_DiscoversHandlersFromPage()
         {
             // Arrange
@@ -306,6 +360,53 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
         }
 
         [Fact]
+        public void OnProvidersExecuting_DiscoversBindingInfoFromHandler()
+        {
+            // Arrange
+            var provider = new DefaultPageApplicationModelProvider();
+            var typeInfo = typeof(PageWithBindPropertyModel).GetTypeInfo();
+            var modelType = typeof(ModelWithBindProperty);
+            var descriptor = new PageActionDescriptor();
+            var context = new PageApplicationModelProviderContext(descriptor, typeInfo);
+
+            // Act
+            provider.OnProvidersExecuting(context);
+
+            // Assert
+            Assert.NotNull(context.PageApplicationModel);
+            Assert.Collection(
+                context.PageApplicationModel.HandlerProperties.OrderBy(p => p.PropertyName),
+                property =>
+                {
+                    Assert.Equal(nameof(ModelWithBindProperty.Property1), property.PropertyName);
+                    Assert.NotNull(property.BindingInfo);
+                },
+                property =>
+                {
+                    Assert.Equal(nameof(ModelWithBindProperty.Property2), property.PropertyName);
+                    Assert.NotNull(property.BindingInfo);
+                    Assert.Equal(BindingSource.Path, property.BindingInfo.BindingSource);
+                });
+        }
+
+        private class PageWithBindPropertyModel : PageBase
+        {
+            public ModelWithBindProperty Model => null;
+
+            public override Task ExecuteAsync() => null;
+        }
+
+        [BindProperty]
+        [PageModel]
+        private class ModelWithBindProperty
+        {
+            public string Property1 { get; set; }
+
+            [FromRoute]
+            public string Property2 { get; set; }
+        }
+
+        [Fact]
         public void OnProvidersExecuting_DiscoversHandlersFromModel()
         {
             // Arrange
@@ -332,7 +433,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
                 });
         }
 
-        // We want to test the the 'empty' page has no bound properties, and no handler methods.
+        // We want to test the 'empty' page has no bound properties, and no handler methods.
         [Fact]
         public void OnProvidersExecuting_EmptyPage()
         {
@@ -353,7 +454,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
             Assert.Same(typeof(EmptyPage).GetTypeInfo(), pageModel.PageType);
         }
 
-        // We want to test the the 'empty' page and pagemodel has no bound properties, and no handler methods.
+        // We want to test the 'empty' page and pagemodel has no bound properties, and no handler methods.
         [Fact]
         public void OnProvidersExecuting_EmptyPageModel()
         {
@@ -932,5 +1033,115 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
 
             public void OnGetUser() { }
         }
+
+        [Fact]
+        public void PopulateFilters_AddsIFilterMetadataAttributesToModel()
+        {
+            // Arrange
+            var provider = new DefaultPageApplicationModelProvider();
+            var typeInfo = typeof(FilterModel).GetTypeInfo();
+            var pageModel = new PageApplicationModel(new PageActionDescriptor(), typeInfo, typeInfo.GetCustomAttributes(inherit: true));
+
+            // Act
+            provider.PopulateFilters(pageModel);
+
+            // Assert
+            Assert.Collection(
+                pageModel.Filters,
+                filter => Assert.IsType<TypeFilterAttribute>(filter));
+        }
+
+        [PageModel]
+        [Serializable]
+        [TypeFilter(typeof(object))]
+        private class FilterModel
+        {
+        }
+
+        [Fact]
+        public void PopulateFilters_AddsPageHandlerPageFilter_IfPageImplementsIAsyncPageFilter()
+        {
+            // Arrange
+            var provider = new DefaultPageApplicationModelProvider();
+            var typeInfo = typeof(ModelImplementingAsyncPageFilter).GetTypeInfo();
+            var pageModel = new PageApplicationModel(new PageActionDescriptor(), typeInfo, typeInfo.GetCustomAttributes(inherit: true));
+
+            // Act
+            provider.PopulateFilters(pageModel);
+
+            // Assert
+            Assert.Collection(
+                pageModel.Filters,
+                filter => Assert.IsType<PageHandlerPageFilter>(filter));
+        }
+
+        private class ModelImplementingAsyncPageFilter : IAsyncPageFilter
+        {
+            public Task OnPageHandlerExecutionAsync(PageHandlerExecutingContext context, PageHandlerExecutionDelegate next)
+            {
+                throw new NotImplementedException();
+            }
+
+            public Task OnPageHandlerSelectionAsync(PageHandlerSelectedContext context)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [Fact]
+        public void PopulateFilters_AddsPageHandlerPageFilter_IfPageImplementsIPageFilter()
+        {
+            // Arrange
+            var provider = new DefaultPageApplicationModelProvider();
+            var typeInfo = typeof(ModelImplementingPageFilter).GetTypeInfo();
+            var pageModel = new PageApplicationModel(new PageActionDescriptor(), typeInfo, typeInfo.GetCustomAttributes(inherit: true));
+
+            // Act
+            provider.PopulateFilters(pageModel);
+
+            // Assert
+            Assert.Collection(
+                pageModel.Filters,
+                filter => Assert.IsType<PageHandlerPageFilter>(filter));
+        }
+
+        private class ModelImplementingPageFilter : IPageFilter
+        {
+            public void OnPageHandlerExecuted(PageHandlerExecutedContext context)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void OnPageHandlerExecuting(PageHandlerExecutingContext context)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void OnPageHandlerSelected(PageHandlerSelectedContext context)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [Fact]
+        public void PopulateFilters_AddsPageHandlerPageFilter_ForModelDerivingFromTypeImplementingPageFilter()
+        {
+            // Arrange
+            var provider = new DefaultPageApplicationModelProvider();
+            var typeInfo = typeof(DerivedFromPageModel).GetTypeInfo();
+            var pageModel = new PageApplicationModel(new PageActionDescriptor(), typeInfo, typeInfo.GetCustomAttributes(inherit: true));
+
+            // Act
+            provider.PopulateFilters(pageModel);
+
+            // Assert
+            Assert.Collection(
+                pageModel.Filters,
+                filter => Assert.IsType<ServiceFilterAttribute>(filter),
+                filter => Assert.IsType<PageHandlerPageFilter>(filter));
+        }
+
+        [ServiceFilter(typeof(IServiceProvider))]
+        private class DerivedFromPageModel : PageModel { }
     }
 }

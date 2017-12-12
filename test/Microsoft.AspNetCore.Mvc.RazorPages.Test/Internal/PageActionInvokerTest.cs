@@ -356,6 +356,32 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
             Assert.Same(pageModel.PageContext.ViewData, pageResult.ViewData);
         }
 
+        [Fact]
+        public async Task InvokeAction_WithPage_SetsExecutingFilePath()
+        {
+            // Arrange
+            var relativePath = "/Pages/Users/Show.cshtml";
+            var descriptor = CreateDescriptorForSimplePage();
+            descriptor.RelativePath = relativePath;
+
+            object instance = null;
+            var pageFilter = new Mock<IPageFilter>();
+            AllowSelector(pageFilter);
+            pageFilter
+                .Setup(f => f.OnPageHandlerExecuting(It.IsAny<PageHandlerExecutingContext>()))
+                .Callback<PageHandlerExecutingContext>(c =>
+                {
+                    instance = c.HandlerInstance;
+                });
+            var invoker = CreateInvoker(new[] { pageFilter.Object }, descriptor);
+
+            // Act
+            await invoker.InvokeAsync();
+
+            // Assert
+            var page = Assert.IsType<TestPage>(instance);
+            Assert.Equal(relativePath, page.ViewContext.ExecutingFilePath);
+        }
         #endregion
 
         #region Handler Selection
@@ -1223,11 +1249,11 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
 
         private static ParameterBinder GetParameterBinder(
             IModelBinderFactory factory = null,
-            IObjectModelValidator validator = null)
+            IModelValidatorProvider validator = null)
         {
             if (validator == null)
             {
-                validator = CreateMockValidator();
+                validator = CreateMockValidatorProvider();
             }
 
             if (factory == null)
@@ -1241,15 +1267,12 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
                 validator);
         }
 
-        private static IObjectModelValidator CreateMockValidator()
+        private static IModelValidatorProvider CreateMockValidatorProvider()
         {
-            var mockValidator = new Mock<IObjectModelValidator>(MockBehavior.Strict);
+            var mockValidator = new Mock<IModelValidatorProvider>(MockBehavior.Strict);
             mockValidator
-                .Setup(o => o.Validate(
-                    It.IsAny<ActionContext>(),
-                    It.IsAny<ValidationStateDictionary>(),
-                    It.IsAny<string>(),
-                    It.IsAny<object>()));
+                .Setup(o => o.CreateValidators(
+                    It.IsAny<ModelValidatorProviderContext>()));
             return mockValidator.Object;
         }
 

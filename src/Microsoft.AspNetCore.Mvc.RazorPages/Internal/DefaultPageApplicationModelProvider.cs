@@ -9,13 +9,14 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure;
 using Microsoft.Extensions.Internal;
-using Microsoft.Extensions.Options;
 
 namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
 {
     public class DefaultPageApplicationModelProvider : IPageApplicationModelProvider
     {
         private const string ModelPropertyName = "Model";
+        private readonly PageHandlerPageFilter _pageHandlerPageFilter = new PageHandlerPageFilter();
+        private readonly PageHandlerResultFilter _pageHandlerResultFilter = new PageHandlerResultFilter();
 
         /// <inheritdoc />
         public int Order => -1000;
@@ -143,6 +144,18 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
                     pageModel.Filters.Add(filter);
                 }
             }
+
+            if (typeof(IAsyncPageFilter).IsAssignableFrom(pageModel.HandlerType) ||
+                typeof(IPageFilter).IsAssignableFrom(pageModel.HandlerType))
+            {
+                pageModel.Filters.Add(_pageHandlerPageFilter);
+            }
+
+            if (typeof(IAsyncResultFilter).IsAssignableFrom(pageModel.HandlerType) ||
+                typeof(IResultFilter).IsAssignableFrom(pageModel.HandlerType))
+            {
+                pageModel.Filters.Add(_pageHandlerResultFilter);
+            }
         }
 
         /// <summary>
@@ -221,10 +234,15 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
                 throw new ArgumentNullException(nameof(property));
             }
 
-            var attributes = property.GetCustomAttributes(inherit: true);
-            var bindingInfo = BindingInfo.GetBindingInfo(attributes);
+            var propertyAttributes = property.GetCustomAttributes(inherit: true);
+            var handlerAttributes = property.DeclaringType.GetCustomAttributes(inherit: true);
 
-            var model = new PagePropertyModel(property, property.GetCustomAttributes(inherit: true))
+            // Look for binding info on the handler if nothing is specified on the property.
+            // This allows BindProperty attributes on handlers to apply to properties.
+            var bindingInfo = BindingInfo.GetBindingInfo(propertyAttributes) ??
+                BindingInfo.GetBindingInfo(handlerAttributes);
+
+            var model = new PagePropertyModel(property, propertyAttributes)
             {
                 PropertyName = property.Name,
                 BindingInfo = bindingInfo,
@@ -250,7 +268,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
                 return false;
             }
 
-            // Overriden methods from Object class, e.g. Equals(Object), GetHashCode(), etc., are not valid.
+            // Overridden methods from Object class, e.g. Equals(Object), GetHashCode(), etc., are not valid.
             if (methodInfo.GetBaseDefinition().DeclaringType == typeof(object))
             {
                 return false;

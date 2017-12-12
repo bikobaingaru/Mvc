@@ -430,12 +430,14 @@ namespace Microsoft.AspNetCore.Mvc.Internal
                 ControllerActionDescriptor actionDescriptor,
                 MockControllerFactory controllerFactory)
             {
+                var objectMethodExecutor = CreateExecutor(actionDescriptor);
                 return new ControllerActionInvokerCacheEntry(
                     new FilterItem[0],
                     controllerFactory.CreateController,
                     controllerFactory.ReleaseController,
                     null,
-                    CreateExecutor(actionDescriptor));
+                    objectMethodExecutor,
+                    ActionMethodExecutor.GetExecutor(objectMethodExecutor));
             }
         }
 
@@ -446,7 +448,7 @@ namespace Microsoft.AspNetCore.Mvc.Internal
                 : base(
                     new EmptyModelMetadataProvider(),
                     TestModelBinderFactory.CreateDefault(),
-                    Mock.Of<IObjectModelValidator>())
+                    Mock.Of<IModelValidatorProvider>())
             {
                 _actionParameters = actionParameters;
             }

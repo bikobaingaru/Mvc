@@ -7,6 +7,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure;
@@ -23,6 +24,16 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages
 {
     public class PageModelTest
     {
+        [Fact]
+        public void PageContext_GetsInitialized()
+        {
+            // Arrange
+            var pageModel = new TestPageModel();
+
+            // Act & Assert
+            Assert.NotNull(pageModel.PageContext);
+        }
+
         [Fact]
         public void Redirect_WithParameterUrl_SetsRedirectResultSameUrl()
         {
@@ -1485,6 +1496,35 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages
         }
 
         [Fact]
+        public void BadRequest_SetsStatusCode()
+        {
+            // Arrange
+            var page = new TestPage();
+
+            // Act
+            var result = page.BadRequest();
+
+            // Assert
+            Assert.IsType<BadRequestResult>(result);
+            Assert.Equal(StatusCodes.Status400BadRequest, result.StatusCode);
+        }
+
+        [Fact]
+        public void BadRequest_SetsStatusCodeAndResponseContent()
+        {
+            // Arrange
+            var page = new TestPage();
+
+            // Act
+            var result = page.BadRequest("Test Content");
+
+            // Assert
+            Assert.IsType<BadRequestObjectResult>(result);
+            Assert.Equal(StatusCodes.Status400BadRequest, result.StatusCode);
+            Assert.Equal("Test Content", result.Value);
+        }
+
+        [Fact]
         public void NotFound_SetsStatusCode()
         {
             // Arrange
@@ -1760,6 +1800,99 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages
             // Assert
             var pageResult = Assert.IsType<PageResult>(result);
             Assert.Null(pageResult.Page); // This is set by the invoker
+        }
+
+        [Fact]
+        public async Task AsyncPageHandlerExecutingMethod_InvokeSyncMethods()
+        {
+            // Arrange
+            var pageContext = new PageContext(new ActionContext(
+                new DefaultHttpContext(),
+                new RouteData(),
+                new PageActionDescriptor(),
+                new ModelStateDictionary()));
+            var pageHandlerExecutingContext = new PageHandlerExecutingContext(
+                pageContext,
+                Array.Empty<IFilterMetadata>(),
+                new HandlerMethodDescriptor(),
+                new Dictionary<string, object>(),
+                new object());
+            var pageHandlerExecutedContext = new PageHandlerExecutedContext(
+                pageContext,
+                Array.Empty<IFilterMetadata>(),
+                new HandlerMethodDescriptor(),
+                new object());
+            var testPageModel = new Mock<PageModel> { CallBase = true };
+            testPageModel.Setup(p => p.OnPageHandlerExecuting(pageHandlerExecutingContext))
+                .Verifiable();
+            testPageModel.Setup(p => p.OnPageHandlerExecuted(pageHandlerExecutedContext))
+                .Verifiable();
+
+            // Act
+            await testPageModel.Object.OnPageHandlerExecutionAsync(
+                pageHandlerExecutingContext,
+                () => Task.FromResult(pageHandlerExecutedContext));
+
+            testPageModel.Verify();
+        }
+
+        [Fact]
+        public async Task AsyncPageHandlerExecutingMethod__DoesNotInvokeExecutedMethod_IfResultIsSet()
+        {
+            // Arrange
+            var pageContext = new PageContext(new ActionContext(
+                new DefaultHttpContext(),
+                new RouteData(),
+                new PageActionDescriptor(),
+                new ModelStateDictionary()));
+            var pageHandlerExecutingContext = new PageHandlerExecutingContext(
+                pageContext,
+                Array.Empty<IFilterMetadata>(),
+                new HandlerMethodDescriptor(),
+                new Dictionary<string, object>(),
+                new object());
+            var pageHandlerExecutedContext = new PageHandlerExecutedContext(
+                pageContext,
+                Array.Empty<IFilterMetadata>(),
+                new HandlerMethodDescriptor(),
+                new object());
+            var testPageModel = new Mock<PageModel>() { CallBase = true };
+            testPageModel.Setup(p => p.OnPageHandlerExecuting(pageHandlerExecutingContext))
+                .Callback((PageHandlerExecutingContext context) => context.Result = new PageResult())
+                .Verifiable();
+            testPageModel.Setup(p => p.OnPageHandlerExecuted(pageHandlerExecutedContext))
+                .Throws(new Exception("Shouldn't be called"));
+
+            // Act
+            await testPageModel.Object.OnPageHandlerExecutionAsync(
+                pageHandlerExecutingContext,
+                () => Task.FromResult(pageHandlerExecutedContext));
+
+            testPageModel.Verify();
+        }
+
+        [Fact]
+        public async Task AsyncPageHandlerSelectingMethod_InvokeSyncMethods()
+        {
+            // Arrange
+            var pageContext = new PageContext(new ActionContext(
+                new DefaultHttpContext(),
+                new RouteData(),
+                new PageActionDescriptor(),
+                new ModelStateDictionary()));
+            var pageHandlerSelectedContext = new PageHandlerSelectedContext(
+                pageContext,
+                Array.Empty<IFilterMetadata>(),
+                new object());
+
+            var testPageModel = new Mock<PageModel> { CallBase = true };
+            testPageModel.Setup(p => p.OnPageHandlerSelected(pageHandlerSelectedContext))
+                .Verifiable();
+
+            // Act
+            await testPageModel.Object.OnPageHandlerSelectionAsync(pageHandlerSelectedContext);
+
+            testPageModel.Verify();
         }
 
         private class ContentPageModel : PageModel

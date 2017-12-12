@@ -485,11 +485,11 @@ namespace Microsoft.AspNetCore.Mvc.IntegrationTests
             Assert.Null(entry.Value.AttemptedValue);
             Assert.Null(entry.Value.RawValue);
             var error = Assert.Single(entry.Value.Errors);
-            Assert.NotNull(error.Exception);
+            Assert.Null(error.Exception);
 
             // Json.NET currently throws an exception starting with "No JSON content found and type 'System.Int32' is
             // not nullable." but do not tie test to a particular Json.NET build.
-            Assert.NotEmpty(error.Exception.Message);
+            Assert.NotEmpty(error.ErrorMessage);
         }
 
         private class Person5
@@ -578,7 +578,7 @@ namespace Microsoft.AspNetCore.Mvc.IntegrationTests
             Assert.Null(boundPerson.Address);
 
             Assert.False(modelState.IsValid);
-            Assert.Equal(1, modelState.Count);
+            Assert.Single(modelState);
             Assert.Equal(1, modelState.ErrorCount);
 
             var state = modelState["CustomParameter.Address.Number"];
@@ -586,11 +586,11 @@ namespace Microsoft.AspNetCore.Mvc.IntegrationTests
             Assert.Null(state.AttemptedValue);
             Assert.Null(state.RawValue);
             var error = Assert.Single(state.Errors);
-            Assert.NotNull(error.Exception);
+            Assert.Null(error.Exception);
 
             // Json.NET currently throws an Exception with a Message starting with "Could not convert string to
             // integer: not a number." but do not tie test to a particular Json.NET build.
-            Assert.NotEmpty(error.Exception.Message);
+            Assert.NotEmpty(error.ErrorMessage);
         }
 
         [Theory]

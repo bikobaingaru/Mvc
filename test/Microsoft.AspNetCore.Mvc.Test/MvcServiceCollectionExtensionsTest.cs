@@ -23,7 +23,6 @@ using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.AspNetCore.Mvc.Razor.Compilation;
 using Microsoft.AspNetCore.Mvc.Razor.Internal;
 using Microsoft.AspNetCore.Mvc.Razor.TagHelpers;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure;
 using Microsoft.AspNetCore.Mvc.RazorPages.Internal;
 using Microsoft.AspNetCore.Mvc.TagHelpers;
@@ -57,7 +56,7 @@ namespace Microsoft.AspNetCore.Mvc
             var services = new ServiceCollection();
             services.AddSingleton<IHostingEnvironment>(GetHostingEnvironment());
 
-            // Register a mock implementation of each service, AddMvcServices should add another implemenetation.
+            // Register a mock implementation of each service, AddMvcServices should add another implementation.
             foreach (var serviceType in MutliRegistrationServiceTypes)
             {
                 var mockType = typeof(Mock<>).MakeGenericType(serviceType.Key);
@@ -350,6 +349,13 @@ namespace Microsoft.AspNetCore.Mvc
                         }
                     },
                     {
+                        typeof(IConfigureOptions<ApiBehaviorOptions>),
+                        new Type[]
+                        {
+                            typeof(ApiBehaviorOptionsSetup),
+                        }
+                    },
+                    {
                         typeof(IConfigureOptions<MvcViewOptions>),
                         new Type[]
                         {
@@ -411,6 +417,7 @@ namespace Microsoft.AspNetCore.Mvc
                             typeof(CorsApplicationModelProvider),
                             typeof(AuthorizationApplicationModelProvider),
                             typeof(TempDataApplicationModelProvider),
+                            typeof(ApiBehaviorApplicationModelProvider),
                         }
                     },
                     {
@@ -418,6 +425,7 @@ namespace Microsoft.AspNetCore.Mvc
                         new Type[]
                         {
                             typeof(DefaultApiDescriptionProvider),
+                            typeof(ApiBehaviorApiDescriptionProvider),
                             typeof(JsonPatchOperationsArrayProvider),
                         }
                     },

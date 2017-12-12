@@ -162,5 +162,28 @@ namespace Microsoft.AspNetCore.Mvc
         /// Gets or sets the default value for the Permanent property of <see cref="RequireHttpsAttribute"/>.
         /// </summary>
         public bool RequireHttpsPermanent { get; set; }
+
+        /// <summary>
+        /// Gets or sets an indication whether the model binding system will bind undefined values to enumeration types.
+        /// <see langword="false"/> by default.
+        /// </summary>
+        public bool AllowBindingUndefinedValueToEnumType { get; set; }
+
+        /// <summary>
+        /// Gets or sets the option to determine if model binding should convert all exceptions (including ones not related to bad input)
+        /// that occur during deserialization in <see cref="IInputFormatter"/>s into model state errors.
+        /// This option applies only to custom <see cref="IInputFormatter"/>s.
+        /// Default is <see cref="InputFormatterExceptionModelStatePolicy.AllExceptions"/>.
+        /// </summary>
+        public InputFormatterExceptionModelStatePolicy InputFormatterExceptionModelStatePolicy { get; set; }
+
+        /// <summary>
+        /// Gets or sets a flag to determine whether, if an action receives invalid JSON in
+        /// the request body, the JSON deserialization exception message should be replaced
+        /// by a generic error message in model state.
+        /// <see langword="false"/> by default, meaning that clients may receive details about
+        /// why the JSON they posted is considered invalid.
+        /// </summary>
+        public bool SuppressJsonDeserializationExceptionMessagesInModelState { get; set; } = false;
     }
 }

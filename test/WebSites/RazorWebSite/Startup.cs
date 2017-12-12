@@ -30,7 +30,7 @@ namespace RazorWebSite
                 {
                     options.FileProviders.Add(new EmbeddedFileProvider(
                         typeof(Startup).GetTypeInfo().Assembly,
-                        $"{nameof(RazorWebSite)}.EmbeddedViews"));
+                        $"{nameof(RazorWebSite)}.EmbeddedResources"));
                     options.FileProviders.Add(updateableFileProvider);
                     options.ViewLocationExpanders.Add(new NonMainPageViewLocationExpander());
                     options.ViewLocationExpanders.Add(new ForwardSlashExpander());
@@ -43,7 +43,7 @@ namespace RazorWebSite
                     options.HtmlHelperOptions.ValidationMessageElement = "validationMessageElement";
                     options.HtmlHelperOptions.ValidationSummaryMessageElement = "validationSummaryElement";
                 })
-                .AddViewLocalization(LanguageViewLocationExpanderFormat.SubFolder);
+                .AddMvcLocalization(LanguageViewLocationExpanderFormat.SubFolder);
 
             services.AddTransient<InjectedHelper>();
             services.AddTransient<TaskReturningService>();

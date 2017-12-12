@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.Mvc.Internal;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.Extensions.Options;
@@ -119,7 +120,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
             dictionary.Clear();
 
             // Assert
-            Assert.Equal(0, dictionary.Count);
+            Assert.Empty(dictionary);
             Assert.Equal(0, dictionary.ErrorCount);
             Assert.Empty(dictionary);
             Assert.Equal(ModelValidationState.Valid, dictionary.ValidationState);
@@ -135,7 +136,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
             dictionary.Clear();
 
             // Assert
-            Assert.Equal(0, dictionary.Count);
+            Assert.Empty(dictionary);
             Assert.Equal(0, dictionary.ErrorCount);
             Assert.Empty(dictionary);
             Assert.Equal(ModelValidationState.Valid, dictionary.ValidationState);
@@ -180,7 +181,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
 
             // Assert
             Assert.Equal(0, source.ErrorCount);
-            Assert.Equal(1, source.Count);
+            Assert.Single(source);
             Assert.Equal(ModelValidationState.Skipped, source["key"].ValidationState);
         }
 
@@ -239,7 +240,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
 
             // Assert
             Assert.Equal(0, source.ErrorCount);
-            Assert.Equal(1, source.Count);
+            Assert.Single(source);
             Assert.Equal(ModelValidationState.Valid, source["key"].ValidationState);
         }
 
@@ -276,7 +277,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
 
             // Assert
             Assert.Equal(2, target.ErrorCount);
-            Assert.Equal(1, target.Count);
+            Assert.Single(target);
             var actual = target["key"];
             Assert.Equal(entry.RawValue, actual.RawValue);
             Assert.Equal(entry.AttemptedValue, actual.AttemptedValue);
@@ -1005,7 +1006,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
         }
 
         [Fact]
-        public void ModelStateDictionary_NoErrorMessage_ForNonFormatException()
+        public void ModelStateDictionary_NoErrorMessage_ForUnrecognizedException()
         {
             // Arrange
             var dictionary = new ModelStateDictionary();
@@ -1019,6 +1020,28 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
             // Assert
             var error = Assert.Single(dictionary["key"].Errors);
             Assert.Empty(error.ErrorMessage);
+        }
+
+        [Fact]
+        public void ModelStateDictionary_AddsErrorMessage_ForInputFormatterException()
+        {
+            // Arrange
+            var expectedMessage = "This is an InputFormatterException";
+            var dictionary = new ModelStateDictionary();
+
+            var bindingMetadataProvider = new DefaultBindingMetadataProvider();
+            var compositeProvider = new DefaultCompositeMetadataDetailsProvider(new[] { bindingMetadataProvider });
+            var provider = new DefaultModelMetadataProvider(compositeProvider, new OptionsAccessor());
+            var metadata = provider.GetMetadataForType(typeof(int));
+
+            // Act
+            dictionary.TryAddModelError("key", new InputFormatterException(expectedMessage), metadata);
+
+            // Assert
+            var entry = Assert.Single(dictionary);
+            Assert.Equal("key", entry.Key);
+            var error = Assert.Single(entry.Value.Errors);
+            Assert.Equal(expectedMessage, error.ErrorMessage);
         }
 
         [Fact]

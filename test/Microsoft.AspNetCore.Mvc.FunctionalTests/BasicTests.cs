@@ -8,9 +8,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc.Formatters;
+using BasicWebSite.Models;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Mvc.FunctionalTests
@@ -401,6 +400,77 @@ namespace Microsoft.AspNetCore.Mvc.FunctionalTests
 
             // Assert
             Assert.Equal(expected, response.Trim());
+        }
+
+        [Fact]
+        public async Task RedirectToAction_WithEmptyActionName_UsesAmbientValue()
+        {
+            // Arrange
+            var product = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("SampleInt", "20")
+            };
+
+            // Act
+            var response = await Client.PostAsync("/Home/Product", new FormUrlEncodedContent(product));
+
+            // Assert
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.NotNull(response.Headers.Location);
+            Assert.Equal("/Home/Product", response.Headers.Location.ToString());
+
+            var responseBody = await Client.GetStringAsync("/Home/Product");
+            Assert.Equal("Get Product", responseBody);
+        }
+        [Fact]
+        public async Task ActionMethod_ReturningActionMethodOfT_WithBadRequest()
+        {
+            // Arrange
+            var url = "ActionResultOfT/GetProduct";
+
+            // Act
+            var response = await Client.GetAsync(url);
+
+            // Assert
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task ActionMethod_ReturningActionMethodOfT()
+        {
+            // Arrange
+            var url = "ActionResultOfT/GetProduct?productId=10";
+
+            // Act
+            var response = await Client.GetStringAsync(url);
+
+            // Assert
+            var result = JsonConvert.DeserializeObject<Product>(response);
+            Assert.Equal(10, result.SampleInt);
+        }
+
+        [Fact]
+        public async Task ActionMethod_ReturningSequenceOfObjectsWrappedInActionResultOfT()
+        {
+            // Arrange
+            var url = "ActionResultOfT/GetProductsAsync";
+
+            // Act
+            var response = await Client.GetStringAsync(url);
+
+            // Assert
+            var result = JsonConvert.DeserializeObject<Product[]>(response);
+            Assert.Equal(2, result.Length);
+        }
+
+        [Fact]
+        public async Task TestingInfrastructure_InvokesCreateDefaultBuilder()
+        {
+            // Act
+            var response = await Client.GetStringAsync("Testing/Builder");
+
+            // Assert
+            Assert.Equal("true", response);
         }
     }
 }

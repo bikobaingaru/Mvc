@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
@@ -16,7 +17,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
         public void OnProvidersExecuting_DoesNothingIfHandlerHasNoResponseCacheAttributes()
         {
             // Arrange
-            var options = new TestOptionsManager<MvcOptions>();
+            var options = Options.Create(new MvcOptions());
             var provider = new ResponseCacheFilterApplicationModelProvider(options);
             var typeInfo = typeof(PageWithoutResponseCache).GetTypeInfo();
             var context = GetApplicationProviderContext(typeInfo);
@@ -25,7 +26,9 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
             provider.OnProvidersExecuting(context);
 
             // Assert
-            Assert.Empty(context.PageApplicationModel.Filters);
+            Assert.Collection(
+                context.PageApplicationModel.Filters,
+                f => Assert.IsType<PageHandlerPageFilter>(f));
         }
 
         private class PageWithoutResponseCache : Page
@@ -47,7 +50,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
         public void OnProvidersExecuting_AddsResponseCacheFilters()
         {
             // Arrange
-            var options = new TestOptionsManager<MvcOptions>();
+            var options = Options.Create(new MvcOptions());
             var provider = new ResponseCacheFilterApplicationModelProvider(options);
             var typeInfo = typeof(PageWithResponseCache).GetTypeInfo();
             var context = GetApplicationProviderContext(typeInfo);
@@ -59,6 +62,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
             Assert.Collection(
                 context.PageApplicationModel.Filters,
                 f => { },
+                f => Assert.IsType<PageHandlerPageFilter>(f),
                 f =>
                 {
                     var filter = Assert.IsType<ResponseCacheFilter>(f);
@@ -87,7 +91,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
         public void OnProvidersExecuting_ReadsCacheProfileFromOptions()
         {
             // Arrange
-            var options = new TestOptionsManager<MvcOptions>();
+            var options = Options.Create(new MvcOptions());
             options.Value.CacheProfiles.Add("TestCacheProfile", new CacheProfile
             {
                 Duration = 14,
@@ -104,6 +108,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
             Assert.Collection(
                 context.PageApplicationModel.Filters,
                 f => { },
+                f => Assert.IsType<PageHandlerPageFilter>(f),
                 f =>
                 {
                     var filter = Assert.IsType<ResponseCacheFilter>(f);

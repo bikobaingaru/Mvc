@@ -6,9 +6,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.ActionConstraints;
+using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.AspNetCore.Mvc.Formatters.Internal;
@@ -76,6 +78,14 @@ namespace Microsoft.AspNetCore.Mvc.Internal
         private static readonly Action<ILogger, Exception> _featureIsReadOnly;
         private static readonly Action<ILogger, string, Exception> _maxRequestBodySizeSet;
         private static readonly Action<ILogger, Exception> _requestBodySizeLimitDisabled;
+
+        private static readonly Action<ILogger, Exception> _cannotApplyRequestFormLimits;
+        private static readonly Action<ILogger, Exception> _appliedRequestFormLimits;
+
+        private static readonly Action<ILogger, Exception> _modelStateInvalidFilterExecuting;
+
+        private static readonly Action<ILogger, MethodInfo, string, string, Exception> _inferredParameterSource;
+        private static readonly Action<ILogger, MethodInfo, Exception> _unableToInferParameterSources;
 
         static MvcCoreLoggerExtensions()
         {
@@ -182,7 +192,7 @@ namespace Microsoft.AspNetCore.Mvc.Internal
             _objectResultExecuting = LoggerMessage.Define<string>(
                 LogLevel.Information,
                 1,
-                "Executing ObjectResult, writing value {Value}.");
+                "Executing ObjectResult, writing value of type '{Type}'.");
 
             _formatterSelected = LoggerMessage.Define<IOutputFormatter, string>(
                 LogLevel.Debug,
@@ -268,6 +278,31 @@ namespace Microsoft.AspNetCore.Mvc.Internal
                 LogLevel.Debug,
                 3,
                 "The request body size limit has been disabled.");
+
+            _cannotApplyRequestFormLimits = LoggerMessage.Define(
+                LogLevel.Warning,
+                1,
+                "Unable to apply configured form options since the request form has already been read.");
+
+            _appliedRequestFormLimits = LoggerMessage.Define(
+                LogLevel.Debug,
+                2,
+                "Applied the configured form options on the current request.");
+
+            _modelStateInvalidFilterExecuting = LoggerMessage.Define(
+                LogLevel.Debug,
+                1,
+                "The request has model state errors, returning an error response.");
+
+            _inferredParameterSource = LoggerMessage.Define<MethodInfo, string, string>(
+                LogLevel.Debug,
+                1,
+                "Inferred binding source for '{ParameterName}` on `{ActionName}` as {BindingSource}.");
+
+            _unableToInferParameterSources = LoggerMessage.Define<MethodInfo>(
+                LogLevel.Warning,
+                2,
+                "Unable to unambiguously infer binding sources for parameters on '{ActionName}'. More than one parameter may be inferred to bound from body.");
         }
 
         public static IDisposable ActionScope(this ILogger logger, ActionDescriptor action)
@@ -447,13 +482,14 @@ namespace Microsoft.AspNetCore.Mvc.Internal
         {
             if (logger.IsEnabled(LogLevel.Information))
             {
-                _objectResultExecuting(logger, Convert.ToString(value), null);
+                var type = value == null ? "null" : value.GetType().FullName;
+                _objectResultExecuting(logger, type, null);
             }
         }
 
         public static void NoFormatter(
             this ILogger logger,
-            OutputFormatterWriteContext formatterContext)
+            OutputFormatterCanWriteContext formatterContext)
         {
             if (logger.IsEnabled(LogLevel.Warning))
             {
@@ -464,7 +500,7 @@ namespace Microsoft.AspNetCore.Mvc.Internal
         public static void FormatterSelected(
             this ILogger logger,
             IOutputFormatter outputFormatter,
-            OutputFormatterWriteContext context)
+            OutputFormatterCanWriteContext context)
         {
             if (logger.IsEnabled(LogLevel.Debug))
             {
@@ -565,6 +601,39 @@ namespace Microsoft.AspNetCore.Mvc.Internal
         public static void RequestBodySizeLimitDisabled(this ILogger logger)
         {
             _requestBodySizeLimitDisabled(logger, null);
+        }
+
+        public static void CannotApplyRequestFormLimits(this ILogger logger)
+        {
+            _cannotApplyRequestFormLimits(logger, null);
+        }
+
+        public static void AppliedRequestFormLimits(this ILogger logger)
+        {
+            _appliedRequestFormLimits(logger, null);
+        }
+
+        public static void ModelStateInvalidFilterExecuting(this ILogger logger) => _modelStateInvalidFilterExecuting(logger, null);
+
+        public static void InferredParameterBindingSource(
+            this ILogger logger,
+            ParameterModel parameterModel,
+            BindingSource bindingSource)
+        {
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                _inferredParameterSource(logger, parameterModel.Action.ActionMethod, parameterModel.ParameterName, bindingSource.DisplayName, null);
+            }
+        }
+
+        public static void UnableToInferBindingSource(
+            this ILogger logger,
+            ActionModel actionModel)
+        {
+            if (logger.IsEnabled(LogLevel.Warning))
+            {
+                _unableToInferParameterSources(logger, actionModel.ActionMethod, null);
+            }
         }
 
         private class ActionLogScope : IReadOnlyList<KeyValuePair<string, object>>

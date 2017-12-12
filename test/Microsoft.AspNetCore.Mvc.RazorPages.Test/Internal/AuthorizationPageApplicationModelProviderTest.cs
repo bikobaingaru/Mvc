@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.AspNetCore.Mvc.Authorization;
-using Microsoft.AspNetCore.Mvc.Razor;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
@@ -18,7 +18,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
         public void OnProvidersExecuting_IgnoresAttributesOnHandlerMethods()
         {
             // Arrange
-            var policyProvider = new DefaultAuthorizationPolicyProvider(new TestOptionsManager<AuthorizationOptions>());
+            var policyProvider = new DefaultAuthorizationPolicyProvider(Options.Create(new AuthorizationOptions()));
             var autorizationProvider = new AuthorizationPageApplicationModelProvider(policyProvider);
             var typeInfo = typeof(PageWithAuthorizeHandlers).GetTypeInfo();
             var context = GetApplicationProviderContext(typeInfo);
@@ -27,7 +27,9 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
             autorizationProvider.OnProvidersExecuting(context);
 
             // Assert
-            Assert.Empty(context.PageApplicationModel.Filters);
+            Assert.Collection(
+                context.PageApplicationModel.Filters,
+                f => Assert.IsType<PageHandlerPageFilter>(f));
         }
 
         private class PageWithAuthorizeHandlers : Page
@@ -49,7 +51,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
         public void OnProvidersExecuting_AddsAuthorizeFilter_IfModelHasAuthorizationAttributes()
         {
             // Arrange
-            var policyProvider = new DefaultAuthorizationPolicyProvider(new TestOptionsManager<AuthorizationOptions>());
+            var policyProvider = new DefaultAuthorizationPolicyProvider(Options.Create(new AuthorizationOptions()));
             var autorizationProvider = new AuthorizationPageApplicationModelProvider(policyProvider);
             var context = GetApplicationProviderContext(typeof(TestPage).GetTypeInfo());
 
@@ -59,6 +61,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
             // Assert
             Assert.Collection(
                 context.PageApplicationModel.Filters,
+                f => Assert.IsType<PageHandlerPageFilter>(f),
                 f => Assert.IsType<AuthorizeFilter>(f));
         }
 
@@ -81,7 +84,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
         public void OnProvidersExecuting_CollatesAttributesFromInheritedTypes()
         {
             // Arrange
-            var options = new TestOptionsManager<AuthorizationOptions>();
+            var options = Options.Create(new AuthorizationOptions());
             options.Value.AddPolicy("Base", policy => policy.RequireClaim("Basic").RequireClaim("Basic2"));
             options.Value.AddPolicy("Derived", policy => policy.RequireClaim("Derived"));
 
@@ -94,7 +97,12 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
             autorizationProvider.OnProvidersExecuting(context);
 
             // Assert
-            var authorizeFilter = Assert.IsType<AuthorizeFilter>(Assert.Single(context.PageApplicationModel.Filters));
+            AuthorizeFilter authorizeFilter = null;
+            Assert.Collection(
+                context.PageApplicationModel.Filters,
+                f => Assert.IsType<PageHandlerPageFilter>(f),
+                f => authorizeFilter = Assert.IsType<AuthorizeFilter>(f));
+
             // Basic + Basic2 + Derived authorize
             Assert.Equal(3, authorizeFilter.Policy.Requirements.Count);
         }
@@ -123,7 +131,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
         public void OnProvidersExecuting_AddsAllowAnonymousFilter()
         {
             // Arrange
-            var policyProvider = new DefaultAuthorizationPolicyProvider(new TestOptionsManager<AuthorizationOptions>());
+            var policyProvider = new DefaultAuthorizationPolicyProvider(Options.Create(new AuthorizationOptions()));
             var autorizationProvider = new AuthorizationPageApplicationModelProvider(policyProvider);
             var context = GetApplicationProviderContext(typeof(PageWithAnonymousModel).GetTypeInfo());
 
@@ -133,6 +141,7 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
             // Assert
             Assert.Collection(
                 context.PageApplicationModel.Filters,
+                f => Assert.IsType<PageHandlerPageFilter>(f),
                 f => Assert.IsType<AllowAnonymousFilter>(f));
         }
 
